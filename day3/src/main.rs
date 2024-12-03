@@ -4,7 +4,7 @@ use regex::Regex;
 fn main() {
     let contents =
         fs::read_to_string("./input.txt").expect("Something went wrong reading the file");
-    let r = Regex::new(r"mul\(\d+\,\d+\)").unwrap();
+    let mut r = Regex::new(r"mul\(\d+\,\d+\)").unwrap();
 
     let valid: Vec<&str> = r.find_iter(&contents).map(|m| m.as_str()).collect();
 
@@ -14,6 +14,23 @@ fn main() {
         total += multiply(call);
     }
     println!("Total: {}", total);
+
+    // Part two
+    r = Regex::new(r"mul\(\d+\,\d+\)|do\(\)|don't\(\)").unwrap();
+    let valid: Vec<&str> = r.find_iter(&contents).map(|m| m.as_str()).collect();
+    total = 0;
+    let mut condition = true;
+    for call in valid {
+        if call == "do()" {
+            condition = true;
+        } else if call == "don't()" {
+            condition = false;
+        } else if condition {
+            total += multiply(call);
+
+        }
+    }
+    println!("Conditional Total: {}", total);
 }
 
 fn multiply(call: &str) -> i32 {
