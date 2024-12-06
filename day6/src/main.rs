@@ -1,6 +1,8 @@
-use std::{collections::HashSet, fs};
+use parking_lot::Mutex;
+use rayon::prelude::*;
+use std::{collections::HashSet, fs, sync::Arc};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Position {
     Empty,
     Blocked,
@@ -91,8 +93,23 @@ impl Guard {
     }
 }
 
+fn simulate<'a>(grid: &Vec<Vec<Position>>, guard: &'a mut Guard) -> Option<&'a Guard> {
+    let mut iterations = 0;
+    while guard.move_forward(&grid) != MoveOutcome::Finished {
+        if guard.move_forward(&grid) == MoveOutcome::Blocked {
+            guard.turn_right();
+        }
+        iterations += 1;
+        if iterations > 1_000_000 {
+            return None;
+        }
+    }
+    return Some(guard);
+}
+
 fn main() {
     let input = fs::read_to_string("input.txt").unwrap();
+    let mut start_position: (usize, usize) = (0, 0);
     let mut guard = Guard {
         facing: Direction::North,
         position: (0, 0),
@@ -107,7 +124,8 @@ fn main() {
                 '.' => row.push(Position::Empty),
                 '#' => row.push(Position::Blocked),
                 '^' => {
-                    guard.position = (i, j);
+                    start_position = (i, j);
+                    guard.position = start_position;
                     row.push(Position::Empty);
                 }
                 _ => panic!("Unknown character: {}", c),
@@ -116,10 +134,31 @@ fn main() {
         grid.push(row);
     }
 
-    while guard.move_forward(&grid) != MoveOutcome::Finished {
-        if guard.move_forward(&grid) == MoveOutcome::Blocked {
-            guard.turn_right();
-        }
-    }
+    // Part 1
+    simulate(&grid, &mut guard);
     println!("Visited locations: {:?}", guard.visited.len());
+
+    // Part 2: just fucking bruteforce it i'm way too stupid for this
+    let infinite_loops_found = Arc::new(Mutex::new(0));
+    (0..grid.len()).into_par_iter().for_each(|i| {
+        (0..grid[0].len()).into_par_iter().for_each(|j| {
+            if grid[i][j] == Position::Empty {
+                let mut grid = grid.clone();
+                grid[i][j] = Position::Blocked;
+                let mut guard = Guard {
+                    facing: Direction::North,
+                    position: start_position,
+                    visited: HashSet::new(),
+                };
+                match simulate(&grid, &mut guard) {
+                    Some(_guard) => {}
+                    None => {
+                        let mut infinite_loops_found = infinite_loops_found.lock();
+                        *infinite_loops_found += 1;
+                    }
+                }
+            }
+        })
+    });
+    println!("Infinite loops found: {}", infinite_loops_found.lock());
 }
