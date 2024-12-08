@@ -15,6 +15,10 @@ fn multiply(left: i64, right: i64) -> i64 {
     left * right
 }
 
+fn concat(left: i64, right: i64) -> i64 {
+    format!("{}{}", left, right).parse().unwrap()
+}
+
 fn main() {
     let input = fs::read_to_string("input.txt").unwrap();
     let calculations: Vec<PotentialCalculation> = input
@@ -33,7 +37,7 @@ fn main() {
 
     let mut total_of_valid: i64 = 0;
 
-    let possible_operations = [add, multiply];
+    let possible_operations = [add, multiply, concat]; // Remove concat to solve part 1
     'calculation: for calculation in calculations {
         let perms: Vec<Vec<fn(i64, i64) -> i64>> = repeat_n(possible_operations, calculation.inputs.len() - 1).multi_cartesian_product().collect();
         for perm in perms {
